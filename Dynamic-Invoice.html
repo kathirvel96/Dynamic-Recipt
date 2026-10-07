@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Invoice & Receipt Builder</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --dark: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb
+        }
+
+        body {
+            background: #f4f6fb;
+            color: #1f2937;
+            font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #111827, #312e81);
+            color: #fff
+        }
+
+        .card {
+            border: 0;
+            border-radius: 18px;
+            box-shadow: 0 8px 30px rgba(15, 23, 42, .07)
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border-color: #dbe0e8
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 .2rem rgba(79, 70, 229, .12)
+        }
+
+        .section-title {
+            font-weight: 700;
+            font-size: .95rem;
+            color: #374151
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            border-color: var(--primary)
+        }
+
+        .item-row {
+            background: #fafbff;
+            border: 1px solid #e8eaf2;
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 8px
+        }
+
+        .invoice-paper {
+            background: #fff;
+            min-height: 800px;
+            padding: 42px;
+            border-radius: 8px;
+            box-shadow: 0 8px 35px rgba(15, 23, 42, .08)
+        }
+
+        .invoice-logo {
+            width: 58px;
+            height: 58px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb
+        }
+
+        .preview-table th {
+            background: #f3f4f6;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #6b7280
+        }
+
+        .preview-table td {
+            vertical-align: middle
+        }
+
+        .total-box {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 15px
+        }
+
+        .grand-total {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #111827
+        }
+
+        .badge-paid {
+            background: #dcfce7;
+            color: #166534
+        }
+
+        .badge-unpaid {
+            background: #fee2e2;
+            color: #991b1b
+        }
+
+        .badge-partial {
+            background: #fef3c7;
+            color: #92400e
+        }
+
+        .small-muted {
+            font-size: .82rem;
+            color: #6b7280
+        }
+
+        .sticky-preview {
+            position: sticky;
+            top: 18px
+        }
+
+        [contenteditable="true"] {
+            outline: none
+        }
+
+        @media(max-width:991px) {
+            .sticky-preview {
+                position: static
+            }
+
+            .invoice-paper {
+                padding: 25px
+            }
+        }
+
+        @media print {
+            body {
+                background: #fff
+            }
+
+            .no-print,
+            .app-header,
+            .builder-panel {
+                display: none !important
+            }
+
+            .preview-col {
+                width: 100% !important
+            }
+
+            .invoice-paper {
+                box-shadow: none;
+                border-radius: 0;
+                padding: 20px;
+                min-height: auto
+            }
+
+            .container-fluid {
+                padding: 0 !important
+            }
+        }
+
+        .export-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap
+        }
+
+        .btn-export {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff
+        }
+
+        .btn-export:hover {
+            background: #115e59;
+            border-color: #115e59;
+            color: #fff
+        }
+
+        .btn-email {
+            background: #7c3aed;
+            border-color: #7c3aed;
+            color: #fff
+        }
+
+        .btn-email:hover {
+            background: #6d28d9;
+            border-color: #6d28d9;
+            color: #fff
+        }
+
+        .export-status {
+            font-size: .82rem;
+            color: #6b7280;
+            min-height: 20px
+        }
+
+        .pdf-sheet {
+            background: #fff;
+            width: 794px;
+            min-height: 1123px;
+            padding: 48px;
+            position: absolute;
+            left: -100000px;
+            top: 0;
+            z-index: -1
+        }
+
+        @media print {
+
+            .export-actions,
+            .export-status {
+                display: none !important
+            }
+        }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+
+    <header class="app-header py-3 no-print">
+        <div class="container-fluid px-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-0"><i class="bi bi-receipt-cutoff me-2"></i>Dynamic Invoice & Receipt Builder</h4>
+                    <small class="opacity-75">Create professional invoices and receipts directly in your browser</small>
+                </div>
+                <span class="badge bg-light text-dark px-3 py-2">Bootstrap + JavaScript</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid py-4">
+        <div class="row g-4">
+            <!-- BUILDER -->
+            <div class="col-xl-5 builder-panel">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <div class="section-title">Invoice Details</div>
+                            <small class="small-muted">Enter your business and customer information</small>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="newInvoice()"><i
+                                    class="bi bi-file-earmark-plus"></i> New</button>
+                            <button class="btn btn-outline-primary btn-sm" onclick="loadSaved()"><i
+                                    class="bi bi-cloud-download"></i> Load</button>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6"><label class="form-label small">Document Type</label>
+                            <select id="docType" class="form-select form-select-sm" onchange="render()">
+                                <option>INVOICE</option>
+                                <option>RECEIPT</option>
+                                <option>QUOTATION</option>
+                            </select>
+                        </div>
+                        <div class="col-6"><label class="form-label small">Status</label>
+                            <select id="status" class="form-select form-select-sm" onchange="render()">
+                                <option>Paid</option>
+                                <option>Unpaid</option>
+                                <option>Partially Paid</option>
+                            </select>
+                        </div>
+                        <div class="col-6"><label class="form-label small">Document No.</label><input id="docNo"
+                                class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="form-label small">Date</label><input id="docDate" type="date"
+                                class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="form-label small">Due Date</label><input id="dueDate"
+                                type="date" class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="form-label small">Currency</label>
+                            <select id="currency" class="form-select form-select-sm" onchange="render()">
+                                <option value="₹">INR ₹</option>
+                                <option value="$">USD $</option>
+                                <option value="€">EUR €</option>
+                                <option value="£">GBP £</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <div class="section-title mb-2">Business Information</div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12"><input id="businessName" class="form-control form-control-sm"
+                                placeholder="Business / Company Name"></div>
+                        <div class="col-6"><input id="businessPhone" class="form-control form-control-sm"
+                                placeholder="Phone"></div>
+                        <div class="col-6"><input id="businessEmail" class="form-control form-control-sm"
+                                placeholder="Email"></div>
+                        <div class="col-12"><textarea id="businessAddress" class="form-control form-control-sm" rows="2"
+                                placeholder="Business Address"></textarea></div>
+                        <div class="col-12"><input id="taxNo" class="form-control form-control-sm"
+                                placeholder="GSTIN / Tax ID"></div>
+                    </div>
+
+                    <div class="section-title mb-2">Customer Information</div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-12"><input id="customerName" class="form-control form-control-sm"
+                                placeholder="Customer Name"></div>
+                        <div class="col-6"><input id="customerPhone" class="form-control form-control-sm"
+                                placeholder="Phone"></div>
+                        <div class="col-6"><input id="customerEmail" class="form-control form-control-sm"
+                                placeholder="Email"></div>
+                        <div class="col-12"><textarea id="customerAddress" class="form-control form-control-sm" rows="2"
+                                placeholder="Customer Address"></textarea></div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div class="section-title">Items / Services</div>
+                        <button class="btn btn-primary btn-sm" onclick="addItem()"><i class="bi bi-plus-lg"></i> Add
+                            Item</button>
+                    </div>
+                    <div id="items"></div>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-4"><label class="form-label small">Discount %</label><input id="discount"
+                                type="number" min="0" value="0" class="form-control form-control-sm" oninput="render()">
+                        </div>
+                        <div class="col-4"><label class="form-label small">Tax %</label><input id="tax" type="number"
+                                min="0" value="18" class="form-control form-control-sm" oninput="render()"></div>
+                        <div class="col-4"><label class="form-label small">Shipping</label><input id="shipping"
+                                type="number" min="0" value="0" class="form-control form-control-sm" oninput="render()">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-6"><label class="form-label small">Amount Paid</label><input id="paid"
+                                type="number" min="0" value="0" class="form-control form-control-sm" oninput="render()">
+                        </div>
+                        <div class="col-6"><label class="form-label small">Payment Method</label>
+                            <select id="paymentMethod" class="form-select form-select-sm" onchange="render()">
+                                <option>Cash</option>
+                                <option>UPI</option>
+                                <option>Card</option>
+                                <option>Bank Transfer</option>
+                                <option>Cheque</option>
+                                <option>Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label small">Notes / Terms</label>
+                        <textarea id="notes" class="form-control form-control-sm" rows="3"
+                            placeholder="Thank you for your business!"></textarea>
+                    </div>
+
+                    <div class="export-actions mt-4">
+                        <button class="btn btn-primary" onclick="saveInvoice()"><i class="bi bi-save me-1"></i>
+                            Save</button>
+                        <button class="btn btn-export" onclick="exportPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>
+                            Export PDF</button>
+                        <button class="btn btn-email" onclick="shareByEmail()"><i class="bi bi-envelope me-1"></i> Email
+                            Invoice</button>
+                        <button class="btn btn-success" onclick="window.print()"><i class="bi bi-printer me-1"></i>
+                            Print</button>
+                        <button class="btn btn-outline-danger" onclick="clearAll()"><i class="bi bi-trash me-1"></i>
+                            Clear</button>
+                    </div>
+                    <div id="exportStatus" class="export-status mt-2"></div>
+                </div>
+            </div>
+
+            <!-- PREVIEW -->
+            <div class="col-xl-7 preview-col">
+                <div class="sticky-preview">
+                    <div class="d-flex justify-content-between align-items-center mb-2 no-print">
+                        <div><strong>Live Preview</strong>
+                            <div class="small-muted">Changes appear instantly</div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-export btn-sm" onclick="exportPDF()"><i
+                                    class="bi bi-file-earmark-pdf"></i> PDF</button>
+                            <button class="btn btn-email btn-sm" onclick="shareByEmail()"><i class="bi bi-envelope"></i>
+                                Email</button>
+                            <button class="btn btn-dark btn-sm" onclick="window.print()"><i class="bi bi-printer"></i>
+                                Print</button>
+                        </div>
+                    </div>
+
+                    <div class="invoice-paper" id="invoicePreview"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let items = [
+            { name: "Sample Product", description: "Product / service description", qty: 1, price: 1000 }
+        ];
+
+        const $ = id => document.getElementById(id);
+        const money = n => {
+            const cur = $("currency").value;
+            return cur + Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        };
+        const esc = s => String(s ?? "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+        const today = () => new Date().toISOString().slice(0, 10);
+
+        function addItem() {
+            items.push({ name: "", description: "", qty: 1, price: 0 });
+            renderItems(); render();
+        }
+        function removeItem(i) {
+            items.splice(i, 1);
+            if (!items.length) items.push({ name: "", description: "", qty: 1, price: 0 });
+            renderItems(); render();
+        }
+        function updateItem(i, key, val) {
+            items[i][key] = key === "name" || key === "description" ? val : Number(val) || 0;
+            render();
+        }
+        function renderItems() {
+            $("items").innerHTML = items.map((x, i) => `
+ <div class="item-row">
+  <div class="row g-2 align-items-center">
+   <div class="col-md-4"><input class="form-control form-control-sm" value="${esc(x.name)}" placeholder="Item / Service" oninput="updateItem(${i},'name',this.value)"></div>
+   <div class="col-md-3"><input class="form-control form-control-sm" value="${esc(x.description)}" placeholder="Description" oninput="updateItem(${i},'description',this.value)"></div>
+   <div class="col-4 col-md-2"><input type="number" min="0" class="form-control form-control-sm" value="${x.qty}" oninput="updateItem(${i},'qty',this.value)"></div>
+   <div class="col-6 col-md-2"><input type="number" min="0" class="form-control form-control-sm" value="${x.price}" oninput="updateItem(${i},'price',this.value)"></div>
+   <div class="col-2 col-md-1 text-end"><button class="btn btn-outline-danger btn-sm" onclick="removeItem(${i})"><i class="bi bi-x-lg"></i></button></div>
+  </div>
+ </div>`).join("");
+        }
+
+        function getTotals() {
+            const subtotal = items.reduce((s, x) => s + (x.qty * x.price), 0);
+            const discountPct = Number($("discount").value) || 0;
+            const discount = subtotal * discountPct / 100;
+            const taxable = Math.max(0, subtotal - discount);
+            const taxPct = Number($("tax").value) || 0;
+            const tax = taxable * taxPct / 100;
+            const shipping = Number($("shipping").value) || 0;
+            const total = taxable + tax + shipping;
+            const paid = Math.min(Number($("paid").value) || 0, total);
+            return { subtotal, discount, discountPct, taxable, tax, taxPct, shipping, total, paid, balance: total - paid };
+        }
+
+        function statusBadge(status) {
+            let cls = status === "Paid" ? "badge-paid" : status === "Partially Paid" ? "badge-partial" : "badge-unpaid";
+            return `<span class="badge ${cls} px-3 py-2">${esc(status)}</span>`;
+        }
+
+        function render() {
+            const t = getTotals();
+            const rows = items.map((x, i) => `
+ <tr>
+  <td>${i + 1}</td>
+  <td><strong>${esc(x.name || "Item / Service")}</strong><br><span class="small-muted">${esc(x.description)}</span></td>
+  <td class="text-center">${x.qty}</td>
+  <td class="text-end">${money(x.price)}</td>
+  <td class="text-end fw-semibold">${money(x.qty * x.price)}</td>
+ </tr>`).join("");
+
+            const docType = $("docType").value;
+            $("invoicePreview").innerHTML = `
+ <div class="d-flex justify-content-between gap-4">
+   <div class="d-flex gap-3">
+     <div class="invoice-logo d-flex align-items-center justify-content-center bg-light"><i class="bi bi-building fs-3 text-secondary"></i></div>
+     <div>
+       <h3 class="mb-1 fw-bold">${esc($("businessName").value || "Your Business Name")}</h3>
+       <div class="small-muted">${esc($("businessAddress").value || "Business address")}</div>
+       <div class="small-muted">${esc($("businessPhone").value || "Phone")} · ${esc($("businessEmail").value || "Email")}</div>
+       ${$("taxNo").value ? `<div class="small-muted mt-1"><strong>Tax ID:</strong> ${esc($("taxNo").value)}</div>` : ""}
+     </div>
+   </div>
+   <div class="text-end">
+     <h1 class="fw-bold mb-1">${esc(docType)}</h1>
+     <div class="small-muted"># ${esc($("docNo").value || "INV-0001")}</div>
+     <div class="small-muted">Date: ${esc($("docDate").value || today())}</div>
+     ${$("dueDate").value ? `<div class="small-muted">Due: ${esc($("dueDate").value)}</div>` : ""}
+     <div class="mt-2">${statusBadge($("status").value)}</div>
+   </div>
+ </div>
+
+ <hr class="my-4">
+ <div class="row mb-4">
+  <div class="col-6">
+   <div class="small-muted text-uppercase fw-semibold mb-1">Bill To</div>
+   <div class="fw-bold">${esc($("customerName").value || "Customer Name")}</div>
+   <div class="small-muted">${esc($("customerAddress").value || "Customer address")}</div>
+   <div class="small-muted">${esc($("customerPhone").value || "")} ${$("customerEmail").value ? "· " + esc($("customerEmail").value) : ""}</div>
+  </div>
+  <div class="col-6 text-end">
+   <div class="small-muted text-uppercase fw-semibold mb-1">Payment</div>
+   <div class="fw-semibold">${esc($("paymentMethod").value)}</div>
+   <div class="small-muted">Paid: ${money(t.paid)}</div>
+   <div class="small-muted">Balance: ${money(t.balance)}</div>
+  </div>
+ </div>
+
+ <div class="table-responsive">
+ <table class="table preview-table align-middle">
+  <thead><tr><th>#</th><th>Item / Description</th><th class="text-center">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr></thead>
+  <tbody>${rows}</tbody>
+ </table>
+ </div>
+
+ <div class="row justify-content-end mt-4">
+  <div class="col-md-6">
+   <div class="total-box">
+    <div class="d-flex justify-content-between mb-2"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
+    <div class="d-flex justify-content-between mb-2"><span>Discount (${t.discountPct}%)</span><span>- ${money(t.discount)}</span></div>
+    <div class="d-flex justify-content-between mb-2"><span>Tax (${t.taxPct}%)</span><span>${money(t.tax)}</span></div>
+    <div class="d-flex justify-content-between mb-2"><span>Shipping</span><span>${money(t.shipping)}</span></div>
+    <hr>
+    <div class="d-flex justify-content-between align-items-center"><span class="fw-bold">Grand Total</span><span class="grand-total">${money(t.total)}</span></div>
+    <div class="d-flex justify-content-between mt-2 small-muted"><span>Paid</span><span>${money(t.paid)}</span></div>
+    <div class="d-flex justify-content-between small-muted"><span>Balance Due</span><span>${money(t.balance)}</span></div>
+   </div>
+  </div>
+ </div>
+
+ <div class="mt-5 pt-3 border-top">
+   <div class="small-muted fw-semibold mb-1">Notes / Terms</div>
+   <div class="small-muted">${esc($("notes").value || "Thank you for your business!")}</div>
+ </div>
+ <div class="text-center small-muted mt-5">Generated with Dynamic Invoice & Receipt Builder</div>
+ `;
+        }
+
+        function collectData() {
+            const data = {};
+            document.querySelectorAll("#builder input,#builder textarea,#builder select");
+            ["docType", "status", "docNo", "docDate", "dueDate", "currency", "businessName", "businessPhone", "businessEmail", "businessAddress", "taxNo", "customerName", "customerPhone", "customerEmail", "customerAddress", "discount", "tax", "shipping", "paid", "paymentMethod", "notes"].forEach(id => data[id] = $(id).value);
+            data.items = items;
+            return data;
+        }
+        function saveInvoice() {
+            localStorage.setItem("dynamicInvoiceData", JSON.stringify(collectData()));
+            const btn = event?.currentTarget;
+            if (btn) { const old = btn.innerHTML; btn.innerHTML = '<i class="bi bi-check2"></i> Saved'; setTimeout(() => btn.innerHTML = old, 1200); }
+        }
+        function loadSaved() {
+            const raw = localStorage.getItem("dynamicInvoiceData");
+            if (!raw) { alert("No saved invoice found."); return }
+            const d = JSON.parse(raw);
+            Object.keys(d).forEach(k => { if (k !== "items" && $(k)) $(k).value = d[k] });
+            if (d.items) items = d.items;
+            renderItems(); render();
+        }
+        function newInvoice() {
+            const num = Number((localStorage.getItem("invoiceCounter") || 0)) + 1;
+            localStorage.setItem("invoiceCounter", num);
+            const pad = String(num).padStart(4, "0");
+            $("docNo").value = "INV-" + pad;
+            $("docDate").value = today();
+            $("dueDate").value = "";
+            $("status").value = "Unpaid";
+            $("customerName").value = ""; $("customerPhone").value = ""; $("customerEmail").value = ""; $("customerAddress").value = "";
+            $("discount").value = 0; $("tax").value = 18; $("shipping").value = 0; $("paid").value = 0;
+            $("paymentMethod").value = "Cash"; $("notes").value = "Thank you for your business!";
+            items = [{ name: "", description: "", qty: 1, price: 0 }];
+            renderItems(); render();
+        }
+        function clearAll() {
+            if (confirm("Clear the current invoice?")) newInvoice();
+        }
+
+
+        function setExportStatus(message) {
+            const el = $("exportStatus");
+            if (el) el.textContent = message;
+        }
+
+        function safeFileName() {
+            const no = ($("docNo").value || "invoice").replace(/[^a-z0-9_-]+/gi, "-");
+            const customer = ($("customerName").value || "customer").replace(/[^a-z0-9_-]+/gi, "-");
+            return `${no}-${customer}`.replace(/-+/g, "-").replace(/^-|-$/g, "");
+        }
+
+        async function exportPDF() {
+            if (!window.html2canvas || !window.jspdf) {
+                alert("PDF libraries could not be loaded. Please check your internet connection and try again.");
+                return;
+            }
+
+            const button = document.querySelector('[onclick="exportPDF()"]');
+            const old = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating PDF...';
+            setExportStatus("Preparing your A4 PDF...");
+
+            try {
+                // Clone the visible invoice into a dedicated A4-sized sheet.
+                const source = $("invoicePreview");
+                const sheet = document.createElement("div");
+                sheet.className = "pdf-sheet";
+                sheet.innerHTML = source.innerHTML;
+                document.body.appendChild(sheet);
+
+                // Give the browser a moment to finish layout before capturing.
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                const canvas = await html2canvas(sheet, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: "#ffffff",
+                    logging: false
+                });
+
+                document.body.removeChild(sheet);
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+                const pageWidth = 210, pageHeight = 297;
+                const margin = 10;
+                const usableWidth = pageWidth - margin * 2;
+                const imgWidth = usableWidth;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+
+                let y = margin;
+                let remaining = imgHeight;
+                let sourceY = 0;
+                const pagePixelHeight = Math.floor(canvas.width * (pageHeight - margin * 2) / imgWidth);
+
+                while (remaining > 0) {
+                    const sliceHeight = Math.min(pagePixelHeight, canvas.height - sourceY);
+                    const slice = document.createElement("canvas");
+                    slice.width = canvas.width;
+                    slice.height = sliceHeight;
+                    const ctx = slice.getContext("2d");
+                    ctx.fillStyle = "#fff";
+                    ctx.fillRect(0, 0, slice.width, slice.height);
+                    ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                    const sliceMm = sliceHeight * imgWidth / canvas.width;
+                    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgWidth, sliceMm, undefined, "FAST");
+
+                    remaining -= sliceMm;
+                    sourceY += sliceHeight;
+                    if (remaining > 0) pdf.addPage();
+                }
+
+                const filename = safeFileName() + ".pdf";
+                pdf.save(filename);
+                setExportStatus("PDF exported successfully: " + filename);
+            } catch (err) {
+                console.error(err);
+                setExportStatus("PDF export failed. Please try again.");
+                alert("Unable to create the PDF. Please try again.");
+            } finally {
+                button.disabled = false;
+                button.innerHTML = old;
+            }
+        }
+
+        function shareByEmail() {
+            const t = getTotals();
+            const recipient = ($("customerEmail").value || "").trim();
+            const docType = $("docType").value;
+            const docNo = $("docNo").value || "INV-0001";
+            const customer = $("customerName").value || "Customer";
+            const business = $("businessName").value || "Your Business";
+            const subject = `${docType} ${docNo} from ${business}`;
+            const body = [
+                `Hello ${customer},`,
+                ``,
+                `Please find the details of your ${docType.toLowerCase()} below.`,
+                ``,
+                `${docType}: ${docNo}`,
+                `Date: ${$("docDate").value || today()}`,
+                `Total: ${money(t.total)}`,
+                `Paid: ${money(t.paid)}`,
+                `Balance Due: ${money(t.balance)}`,
+                `Payment Method: ${$("paymentMethod").value}`,
+                ``,
+                $("notes").value || "Thank you for your business!",
+                ``,
+                `Regards,`,
+                business,
+                $("businessPhone").value || "",
+                $("businessEmail").value || ""
+            ].join("\n");
+
+            // mailto works without a mail server. If an email address exists, prefill it.
+            const url = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.location.href = url;
+            setExportStatus(recipient
+                ? `Opening your email app addressed to ${recipient}.`
+                : "Opening your email app with the invoice details. Add the recipient before sending.");
+        }
+
+        document.querySelectorAll("input,textarea,select").forEach(el => el.addEventListener("input", render));
+        $("docDate").value = today();
+        $("docNo").value = "INV-0001";
+        $("notes").value = "Thank you for your business!";
+        renderItems(); render();
+    </script>
+</body>
+
+</html>
