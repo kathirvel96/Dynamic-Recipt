@@ -198,6 +198,8 @@
             color: #fff
         }
 
+        .swal2-popup { font-family: inherit !important; border-radius: 14px !important }
+
         .export-status {
             font-size: .82rem;
             color: #6b7280;
@@ -223,9 +225,11 @@
             }
         }
     </style>
-
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.8/dist/sweetalert2.all.min.js"></script>
 </head>
 
 <body>
@@ -237,7 +241,9 @@
                     <h4 class="mb-0"><i class="bi bi-receipt-cutoff me-2"></i>Dynamic Invoice & Receipt Builder</h4>
                     <small class="opacity-75">Create professional invoices and receipts directly in your browser</small>
                 </div>
-                <span class="badge bg-light text-dark px-3 py-2">Bootstrap + JavaScript</span>
+                <span class="badge bg-light text-dark px-3 py-2"><a href="Dashboard.html" class="btn btn-light text-dark px-3 py-2">
+    <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+          </a></span>
             </div>
         </div>
     </header>
@@ -359,7 +365,7 @@
                     </div>
 
                     <div class="export-actions mt-4">
-                        <button class="btn btn-primary" onclick="saveInvoice()"><i class="bi bi-save me-1"></i>
+                        <button class="btn btn-primary" onclick="saveInvoice(this)"><i class="bi bi-save me-1"></i>
                             Save</button>
                         <button class="btn btn-export" onclick="exportPDF()"><i class="bi bi-file-earmark-pdf me-1"></i>
                             Export PDF</button>
@@ -532,31 +538,137 @@
  `;
         }
 
+        /* =====================================================
+           SUPABASE + SWEETALERT SETUP
+           ===================================================== */
+        const SUPABASE_URL      = "https://oneynhaypzkinjbisgur.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Vxxbu_84lBIalJqW_X3TeA_vVM1ryxJ";
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const BRAND = "#4f46e5";
+        const Toast = Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 2500, timerProgressBar: true });
+        const alertWarn = (title, text) => Swal.fire({ icon: "warning", title, text, confirmButtonColor: BRAND });
+        const alertErr = (title, text) => Swal.fire({ icon: "error", title, text, confirmButtonColor: BRAND });
+        const isEmail = v => /^\S+@\S+\.\S+$/.test(v);
+
+        function dbConfigured() {
+            if (SUPABASE_URL.includes("YOUR-PROJECT")) {
+                Swal.fire({ icon: "info", title: "Supabase is not connected", text: "Add your SUPABASE_URL and SUPABASE_ANON_KEY at the top of the script.", confirmButtonColor: BRAND });
+                return false;
+            }
+            return true;
+        }
+
+        function sessionUser() {
+            for (const s of [localStorage, sessionStorage]) {
+                try { const r = s.getItem("invoiceDeskSession"); if (r) return JSON.parse(r); } catch (e) { }
+            }
+            return null;
+        }
+
+        /* =====================================================
+           COLLECT / SAVE / LOAD / NEW
+           ===================================================== */
         function collectData() {
             const data = {};
-            document.querySelectorAll("#builder input,#builder textarea,#builder select");
             ["docType", "status", "docNo", "docDate", "dueDate", "currency", "businessName", "businessPhone", "businessEmail", "businessAddress", "taxNo", "customerName", "customerPhone", "customerEmail", "customerAddress", "discount", "tax", "shipping", "paid", "paymentMethod", "notes"].forEach(id => data[id] = $(id).value);
             data.items = items;
             return data;
         }
-        function saveInvoice() {
-            localStorage.setItem("dynamicInvoiceData", JSON.stringify(collectData()));
-            const btn = event?.currentTarget;
-            if (btn) { const old = btn.innerHTML; btn.innerHTML = '<i class="bi bi-check2"></i> Saved'; setTimeout(() => btn.innerHTML = old, 1200); }
+
+        async function saveInvoice(btn) {
+            const d = collectData();
+            const filled = items.filter(x => (x.name || "").trim());
+
+            if (!d.docNo.trim()) return alertWarn("Document number missing", "Enter a document number before saving.");
+            if (!d.customerName.trim()) return alertWarn("Customer name missing", "Enter the customer name before saving.");
+            if (!filled.length) return alertWarn("No items", "Add at least one item or service with a name.");
+            if (d.customerEmail.trim() && !isEmail(d.customerEmail.trim())) return alertWarn("Invalid email", "Check the customer's email address.");
+            if (d.dueDate && d.docDate && d.dueDate < d.docDate) return alertWarn("Check the dates", "The due date is earlier than the document date.");
+            if (!dbConfigured()) return;
+
+            d.items = filled;
+            const u = sessionUser();
+            d.createdBy = (u && u.id) || "";
+
+            const old = btn ? btn.innerHTML : "";
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...'; }
+            Swal.fire({ title: "Saving…", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+
+            try {
+                const { data, error } = await sb.rpc("save_invoice", { p_data: d });
+                if (error) throw error;
+                const label = d.docType.charAt(0) + d.docType.slice(1).toLowerCase();
+                await Swal.fire({
+                    icon: "success",
+                    title: data && data.created ? "Saved" : "Updated",
+                    text: `${label} ${d.docNo} for ${d.customerName} was ${data && data.created ? "saved" : "updated"} successfully.`,
+                    timer: 2000, timerProgressBar: true, showConfirmButton: false
+                });
+                setExportStatus(`${d.docNo} saved to the database.`);
+            } catch (err) {
+                console.error(err);
+                alertErr("Could not save", err.message || "Please check your connection and Supabase setup.");
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = old; }
+            }
         }
-        function loadSaved() {
-            const raw = localStorage.getItem("dynamicInvoiceData");
-            if (!raw) { alert("No saved invoice found."); return }
-            const d = JSON.parse(raw);
-            Object.keys(d).forEach(k => { if (k !== "items" && $(k)) $(k).value = d[k] });
-            if (d.items) items = d.items;
-            renderItems(); render();
+
+        async function loadSaved() {
+            if (!dbConfigured()) return;
+            Swal.fire({ title: "Loading saved documents…", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+            try {
+                const { data: list, error } = await sb.rpc("list_invoices");
+                if (error) throw error;
+                if (!list || !list.length) {
+                    return Swal.fire({ icon: "info", title: "Nothing saved yet", text: "Save a document first and it will appear here.", confirmButtonColor: BRAND });
+                }
+                const opts = {};
+                list.forEach(r => {
+                    const amt = Number(r.total).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    opts[r.id] = `${r.doc_no} · ${r.customer_name || "No name"} · ${r.currency}${amt} · ${r.status}`;
+                });
+                const pick = await Swal.fire({
+                    title: "Load a saved document",
+                    input: "select", inputOptions: opts, inputPlaceholder: "Select a document…",
+                    showCancelButton: true, confirmButtonText: "Load", confirmButtonColor: BRAND,
+                    inputValidator: v => !v && "Please select a document"
+                });
+                if (!pick.isConfirmed) return;
+
+                Swal.fire({ title: "Opening…", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+                const { data: d, error: e2 } = await sb.rpc("get_invoice", { p_id: pick.value });
+                if (e2) throw e2;
+                if (!d) throw new Error("That document no longer exists.");
+
+                Object.keys(d).forEach(k => { if (k !== "items" && $(k)) $(k).value = d[k]; });
+                items = (d.items && d.items.length) ? d.items.map(x => ({ name: x.name, description: x.description, qty: Number(x.qty), price: Number(x.price) }))
+                    : [{ name: "", description: "", qty: 1, price: 0 }];
+                renderItems(); render();
+                Swal.close();
+                Toast.fire({ icon: "success", title: `${d.docNo} loaded` });
+            } catch (err) {
+                console.error(err);
+                alertErr("Could not load", err.message || "Please try again.");
+            }
         }
-        function newInvoice() {
-            const num = Number((localStorage.getItem("invoiceCounter") || 0)) + 1;
+
+        const DOC_PREFIX = { INVOICE: "INV", RECEIPT: "RCT", QUOTATION: "QTN" };
+
+        async function suggestDocNo() {
+            const type = $("docType").value;
+            if (!SUPABASE_URL.includes("YOUR-PROJECT")) {
+                try {
+                    const { data, error } = await sb.rpc("next_doc_no", { p_type: type });
+                    if (!error && data) return data;
+                } catch (e) { }
+            }
+            const num = Number(localStorage.getItem("invoiceCounter") || 0) + 1;   // offline fallback
             localStorage.setItem("invoiceCounter", num);
-            const pad = String(num).padStart(4, "0");
-            $("docNo").value = "INV-" + pad;
+            return (DOC_PREFIX[type] || "INV") + "-" + String(num).padStart(4, "0");
+        }
+
+        async function newInvoice() {
+            $("docNo").value = await suggestDocNo();
             $("docDate").value = today();
             $("dueDate").value = "";
             $("status").value = "Unpaid";
@@ -566,11 +678,18 @@
             items = [{ name: "", description: "", qty: 1, price: 0 }];
             renderItems(); render();
         }
-        function clearAll() {
-            if (confirm("Clear the current invoice?")) newInvoice();
+
+        async function clearAll() {
+            const r = await Swal.fire({
+                icon: "question", title: "Clear this document?", text: "Unsaved changes will be lost.",
+                showCancelButton: true, confirmButtonText: "Yes, clear it", confirmButtonColor: "#dc2626"
+            });
+            if (r.isConfirmed) newInvoice();
         }
 
-
+        /* =====================================================
+           PDF
+           ===================================================== */
         function setExportStatus(message) {
             const el = $("exportStatus");
             if (el) el.textContent = message;
@@ -582,97 +701,100 @@
             return `${no}-${customer}`.replace(/-+/g, "-").replace(/^-|-$/g, "");
         }
 
-        async function exportPDF() {
-            if (!window.html2canvas || !window.jspdf) {
-                alert("PDF libraries could not be loaded. Please check your internet connection and try again.");
-                return;
+        const pdfReady = () => !!(window.html2canvas && window.jspdf);
+
+        // Builds the A4 PDF and returns { pdf, filename } (does not download it)
+        async function buildPDF() {
+            const source = $("invoicePreview");
+            const sheet = document.createElement("div");
+            sheet.className = "pdf-sheet";
+            sheet.innerHTML = source.innerHTML;
+            document.body.appendChild(sheet);
+
+            let canvas;
+            try {
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                canvas = await html2canvas(sheet, { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false });
+            } finally {
+                document.body.removeChild(sheet);
             }
 
-            const button = document.querySelector('[onclick="exportPDF()"]');
-            const old = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating PDF...';
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+            const pageHeight = 297, margin = 10;
+            const imgWidth = 210 - margin * 2;
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            const pagePixelHeight = Math.floor(canvas.width * (pageHeight - margin * 2) / imgWidth);
+
+            let remaining = imgHeight, sourceY = 0;
+            while (remaining > 0) {
+                const sliceHeight = Math.min(pagePixelHeight, canvas.height - sourceY);
+                const slice = document.createElement("canvas");
+                slice.width = canvas.width;
+                slice.height = sliceHeight;
+                const ctx = slice.getContext("2d");
+                ctx.fillStyle = "#fff";
+                ctx.fillRect(0, 0, slice.width, slice.height);
+                ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                const sliceMm = sliceHeight * imgWidth / canvas.width;
+                pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgWidth, sliceMm, undefined, "FAST");
+
+                remaining -= sliceMm;
+                sourceY += sliceHeight;
+                if (remaining > 0) pdf.addPage();
+            }
+            return { pdf, filename: safeFileName() + ".pdf" };
+        }
+
+        async function exportPDF() {
+            if (!pdfReady()) {
+                return alertErr("PDF tools not loaded", "The PDF libraries could not be loaded. Check your internet connection and reload the page.");
+            }
+            const buttons = [...document.querySelectorAll('[onclick="exportPDF()"]')];
+            const olds = buttons.map(b => b.innerHTML);
+            buttons.forEach(b => { b.disabled = true; b.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Creating…'; });
             setExportStatus("Preparing your A4 PDF...");
-
             try {
-                // Clone the visible invoice into a dedicated A4-sized sheet.
-                const source = $("invoicePreview");
-                const sheet = document.createElement("div");
-                sheet.className = "pdf-sheet";
-                sheet.innerHTML = source.innerHTML;
-                document.body.appendChild(sheet);
-
-                // Give the browser a moment to finish layout before capturing.
-                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-                const canvas = await html2canvas(sheet, {
-                    scale: 2,
-                    useCORS: true,
-                    backgroundColor: "#ffffff",
-                    logging: false
-                });
-
-                document.body.removeChild(sheet);
-
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-                const pageWidth = 210, pageHeight = 297;
-                const margin = 10;
-                const usableWidth = pageWidth - margin * 2;
-                const imgWidth = usableWidth;
-                const imgHeight = canvas.height * imgWidth / canvas.width;
-
-                let y = margin;
-                let remaining = imgHeight;
-                let sourceY = 0;
-                const pagePixelHeight = Math.floor(canvas.width * (pageHeight - margin * 2) / imgWidth);
-
-                while (remaining > 0) {
-                    const sliceHeight = Math.min(pagePixelHeight, canvas.height - sourceY);
-                    const slice = document.createElement("canvas");
-                    slice.width = canvas.width;
-                    slice.height = sliceHeight;
-                    const ctx = slice.getContext("2d");
-                    ctx.fillStyle = "#fff";
-                    ctx.fillRect(0, 0, slice.width, slice.height);
-                    ctx.drawImage(canvas, 0, sourceY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
-
-                    const sliceMm = sliceHeight * imgWidth / canvas.width;
-                    pdf.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", margin, margin, imgWidth, sliceMm, undefined, "FAST");
-
-                    remaining -= sliceMm;
-                    sourceY += sliceHeight;
-                    if (remaining > 0) pdf.addPage();
-                }
-
-                const filename = safeFileName() + ".pdf";
+                const { pdf, filename } = await buildPDF();
                 pdf.save(filename);
                 setExportStatus("PDF exported successfully: " + filename);
+                Toast.fire({ icon: "success", title: "PDF downloaded" });
             } catch (err) {
                 console.error(err);
                 setExportStatus("PDF export failed. Please try again.");
-                alert("Unable to create the PDF. Please try again.");
+                alertErr("PDF failed", "Unable to create the PDF. Please try again.");
             } finally {
-                button.disabled = false;
-                button.innerHTML = old;
+                buttons.forEach((b, i) => { b.disabled = false; b.innerHTML = olds[i]; });
             }
         }
 
-        function shareByEmail() {
+        /* =====================================================
+           EMAIL  (works with any mail app, Gmail, Outlook.com or the phone's share sheet)
+           ===================================================== */
+        function buildEmailText() {
             const t = getTotals();
-            const recipient = ($("customerEmail").value || "").trim();
             const docType = $("docType").value;
+            const nice = docType.charAt(0) + docType.slice(1).toLowerCase();
             const docNo = $("docNo").value || "INV-0001";
             const customer = $("customerName").value || "Customer";
             const business = $("businessName").value || "Your Business";
-            const subject = `${docType} ${docNo} from ${business}`;
+            const cur = $("currency").value;
+            const lines = items.filter(x => (x.name || "").trim())
+                .map((x, i) => `${i + 1}. ${x.name} - ${x.qty} x ${money(x.price)} = ${money(x.qty * x.price)}`);
+
+            const subject = `${nice} ${docNo} from ${business}`;
             const body = [
                 `Hello ${customer},`,
                 ``,
-                `Please find the details of your ${docType.toLowerCase()} below.`,
+                `Please find the details of your ${nice.toLowerCase()} below.`,
                 ``,
-                `${docType}: ${docNo}`,
+                `${nice} No: ${docNo}`,
                 `Date: ${$("docDate").value || today()}`,
+                $("dueDate").value ? `Due Date: ${$("dueDate").value}` : null,
+                ``,
+                ...lines,
+                ``,
                 `Total: ${money(t.total)}`,
                 `Paid: ${money(t.paid)}`,
                 `Balance Due: ${money(t.balance)}`,
@@ -684,21 +806,103 @@
                 business,
                 $("businessPhone").value || "",
                 $("businessEmail").value || ""
-            ].join("\n");
-
-            // mailto works without a mail server. If an email address exists, prefill it.
-            const url = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            window.location.href = url;
-            setExportStatus(recipient
-                ? `Opening your email app addressed to ${recipient}.`
-                : "Opening your email app with the invoice details. Add the recipient before sending.");
+            ].filter(l => l !== null).join("\r\n");
+            return { subject, body };
         }
 
+        function openLink(url, newTab) {
+            const a = document.createElement("a");
+            a.href = url;
+            if (newTab) { a.target = "_blank"; a.rel = "noopener"; }
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        async function shareByEmail() {
+            const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [new File(["x"], "x.pdf", { type: "application/pdf" })] }));
+
+            const res = await Swal.fire({
+                title: "Email this " + $("docType").value.toLowerCase(),
+                html: `<div style="text-align:left">
+                    <label class="swal2-input-label" for="swEmail" style="margin:0 0 4px;justify-content:flex-start">Send to</label>
+                    <input id="swEmail" class="swal2-input" type="email" placeholder="customer@email.com" value="${esc($("customerEmail").value)}" style="margin:0 0 14px;width:100%;box-sizing:border-box">
+                    <label class="swal2-input-label" for="swProv" style="margin:0 0 4px;justify-content:flex-start">Open with</label>
+                    <select id="swProv" class="swal2-select" style="margin:0 0 14px;width:100%;box-sizing:border-box">
+                        ${canShareFiles ? '<option value="share">Share with the PDF attached (this device)</option>' : ''}
+                        <option value="mailto">Default email app</option>
+                        <option value="gmail">Gmail (new tab)</option>
+                        <option value="outlook">Outlook.com (new tab)</option>
+                    </select>
+                    <label style="display:flex;gap:8px;align-items:center;font-size:14px">
+                        <input type="checkbox" id="swPdf" checked> Also download the PDF so I can attach it
+                    </label></div>`,
+                showCancelButton: true, confirmButtonText: "Continue", confirmButtonColor: BRAND, focusConfirm: false,
+                preConfirm: () => {
+                    const email = $("swEmail").value.trim();
+                    if (email && !isEmail(email)) { Swal.showValidationMessage("Enter a valid email address"); return false; }
+                    return { email, provider: $("swProv").value, pdf: $("swPdf").checked };
+                }
+            });
+            if (!res.isConfirmed) return;
+
+            const { email, provider, pdf } = res.value;
+            if (email) { $("customerEmail").value = email; render(); }
+            const { subject, body } = buildEmailText();
+            const q = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            try {
+                if (provider === "share") {
+                    Swal.fire({ title: "Preparing PDF…", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+                    const { pdf: doc, filename } = await buildPDF();
+                    const file = new File([doc.output("blob")], filename, { type: "application/pdf" });
+                    Swal.close();
+                    await navigator.share({ files: [file], title: subject, text: body });
+                    setExportStatus("Shared " + filename);
+                    return;
+                }
+
+                if (provider === "gmail") {
+                    openLink(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&${q}`, true);
+                } else if (provider === "outlook") {
+                    openLink(`https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(email)}&${q}`, true);
+                } else {
+                    openLink(`mailto:${email}?${q}`, false);
+                }
+
+                if (pdf) {
+                    if (!pdfReady()) throw new Error("PDF libraries could not be loaded.");
+                    Swal.fire({ title: "Creating PDF…", allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+                    const { pdf: doc, filename } = await buildPDF();
+                    doc.save(filename);
+                }
+
+                setExportStatus(email ? `Email draft opened for ${email}.` : "Email draft opened. Add the recipient before sending.");
+                Swal.fire({
+                    icon: "success", title: "Email draft opened",
+                    html: `${pdf ? "Attach the downloaded PDF to your email, then press send.<br>" : ""}<small style="color:#6b7280">Nothing opened? Run it again and choose Gmail or Outlook.com.</small>`,
+                    confirmButtonColor: BRAND
+                });
+            } catch (err) {
+                if (err && err.name === "AbortError") { Swal.close(); return; }   // user closed the share sheet
+                console.error(err);
+                alertErr("Could not prepare the email", err.message || "Please try again.");
+            }
+        }
+
+        /* =====================================================
+           INIT
+           ===================================================== */
         document.querySelectorAll("input,textarea,select").forEach(el => el.addEventListener("input", render));
         $("docDate").value = today();
         $("docNo").value = "INV-0001";
         $("notes").value = "Thank you for your business!";
         renderItems(); render();
+
+        // pick the next free number from the database, quietly
+        if (!SUPABASE_URL.includes("YOUR-PROJECT")) {
+            suggestDocNo().then(n => { $("docNo").value = n; render(); });
+        }
     </script>
 </body>
 

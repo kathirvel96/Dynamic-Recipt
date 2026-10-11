@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice Desk – Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--primary:#4f46e5;--primary-d:#4338ca;--dark:#111827;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--bg:#f4f6fb;--card:#fff;--ok:#166534;--okb:#dcfce7;--bad:#991b1b;--badb:#fee2e2;--warn:#92400e;--warnb:#fef3c7;--blue:#1e40af;--blueb:#dbeafe}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Plus Jakarta Sans",Inter,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+button,input,select{font:inherit}
+.hidden{display:none!important}
+:focus-visible{outline:3px solid rgba(79,70,229,.45);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 14px;border-radius:10px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .15s}
+.btn:hover{background:#f3f4f6}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-d)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.danger:hover{background:var(--badb);color:var(--bad)}
+#app{display:grid;grid-template-columns:240px 1fr;min-height:100%}
+aside{background:linear-gradient(180deg,#111827,#1e1b4b);color:#c7d2fe;padding:22px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+aside .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:20px;color:#fff;padding:0 8px 24px}
+.mark{width:38px;height:38px;border-radius:11px;background:var(--primary);display:grid;place-items:center}
+.nav{display:flex;flex-direction:column;gap:4px;flex:1}
+.nav button{display:flex;justify-content:space-between;align-items:center;background:none;border:0;color:inherit;padding:11px 12px;border-radius:10px;text-align:left;cursor:pointer;font-weight:600}
+.nav button:hover{background:rgba(255,255,255,.07)}
+.nav button.on{background:rgba(255,255,255,.14);color:#fff}
+.nav .n{font-size:12px;background:rgba(255,255,255,.14);padding:2px 8px;border-radius:99px}
+.me{border-top:1px solid rgba(255,255,255,.12);padding-top:14px;display:flex;align-items:center;gap:10px;font-size:13px}
+.av{width:34px;height:34px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700}
+.me button{margin-left:auto;background:none;border:0;color:#c7d2fe;cursor:pointer;font-weight:600}
+main{padding:28px 32px;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.top h2{margin:0;font-size:26px;letter-spacing:-.01em}
+.top p{margin:4px 0 0;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.card{background:var(--card);border-radius:18px;box-shadow:0 8px 30px rgba(15,23,42,.07)}
+.stat{padding:18px 20px}
+.stat span{color:var(--muted);font-weight:600;font-size:13px}
+.stat b{display:block;font-size:26px;margin-top:6px;letter-spacing:-.01em}
+.stat small{color:var(--muted)}
+.split{display:grid;grid-template-columns:1.5fr 1fr;gap:14px;margin-bottom:18px}
+.panel{padding:20px}
+.panel h3{margin:0 0 14px;font-size:15px}
+.bars{display:flex;align-items:flex-end;gap:14px;height:150px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px;font-size:12px;color:var(--muted)}
+.bar i{display:block;width:100%;max-width:46px;background:var(--primary);border-radius:8px 8px 3px 3px;min-height:3px}
+.bar.cur i{background:#312e81}
+.mix .m{margin-bottom:14px}
+.mix .m div{display:flex;justify-content:space-between;font-weight:600;margin-bottom:6px}
+.track{height:8px;background:#eef0f6;border-radius:99px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:99px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--line);align-items:center}
+.tools input{max-width:300px;width:100%;padding:11px 13px;border:1px solid #dbe0e8;border-radius:10px}
+.tools select{width:auto;padding:11px 13px;border:1px solid #dbe0e8;border-radius:10px}
+.tools .sp{flex:1}
+.tabs{display:flex;gap:4px;background:#f1f3f9;padding:4px;border-radius:12px}
+.tabs button{border:0;background:none;padding:7px 14px;border-radius:9px;font-weight:600;color:var(--muted);cursor:pointer}
+.tabs button.on{background:#fff;color:var(--primary);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th{text-align:left;font-size:12px;color:var(--muted);background:#f9fafb;padding:11px 20px;font-weight:600;cursor:pointer;white-space:nowrap;user-select:none}
+td{padding:13px 20px;border-top:1px solid var(--line);white-space:nowrap}
+tr.d:hover td{background:#fafbff}
+.r{text-align:right}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.Paid{background:var(--okb);color:var(--ok)}.Unpaid{background:var(--badb);color:var(--bad)}.Partial{background:var(--warnb);color:var(--warn)}
+.Invoice{background:#e0e7ff;color:#3730a3}.Receipt{background:#ccfbf1;color:#115e59}.Quotation{background:#ede9fe;color:#5b21b6}
+.empty{padding:48px 20px;text-align:center;color:var(--muted)}
+.cust small{display:block;color:var(--muted)}
+.acts{display:flex;gap:6px;justify-content:flex-end}
+.foot{padding:12px 20px;border-top:1px solid var(--line);color:var(--muted);display:flex;justify-content:space-between}
+dialog{border:0;border-radius:18px;padding:0;width:min(560px,94vw);box-shadow:0 30px 80px rgba(15,23,42,.35)}
+dialog::backdrop{background:rgba(17,24,39,.55)}
+.dh{padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line)}
+.dh h3{margin:0;font-size:18px}
+.db{padding:20px 24px}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.kv small{color:var(--muted);display:block}
+.tot{background:#f8fafc;border-radius:12px;padding:14px;margin-top:14px}
+.tot div{display:flex;justify-content:space-between;padding:3px 0}
+.tot .g{font-size:18px;font-weight:800;border-top:1px solid var(--line);margin-top:6px;padding-top:9px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:11px 18px;border-radius:12px;font-weight:600;z-index:9}
+@media(max-width:980px){.stats{grid-template-columns:1fr 1fr}.split{grid-template-columns:1fr}}
+@media(max-width:760px){#app{grid-template-columns:1fr}aside{position:static;height:auto;flex-direction:row;align-items:center;flex-wrap:wrap;gap:8px}aside .brand{padding:0}.nav{flex-direction:row;overflow-x:auto;order:3;width:100%;flex:none}.nav button{white-space:nowrap}.me{border:0;padding:0;margin-left:auto}main{padding:20px 14px}}
+.swal2-popup{font-family:inherit!important;border-radius:14px!important}
+.btn[disabled]{opacity:.6;cursor:wait}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<section id="app">
+  <aside>
+    <div class="brand"><span class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h8M9 17h8"/></svg></span>Invoice Desk</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="me"><span class="av" id="av">A</span><span id="who">Admin</span><button id="logout">Sign out</button></div>
+  </aside>
+  <main>
+    <div class="top">
+      <div><h2 id="title">All transactions</h2><p id="subtitle"></p></div>
+      <div class="actions">
+        <button class="btn" id="refreshBtn">Refresh</button>
+        <button class="btn" id="csvBtn">Export CSV</button>
+        <a class="btn primary" href="Dynamic-Invoice.html">+ New document</a>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="split">
+      <div class="card panel"><h3>Billed per month</h3><div class="bars" id="bars"></div></div>
+      <div class="card panel mix"><h3>By document type</h3><div id="mix"></div></div>
+    </div>
+    <div class="card">
+      <div class="tools">
+        <div class="tabs" id="tabs"></div>
+        <input type="search" id="q" placeholder="Search customer or number" aria-label="Search">
+        <select id="st" aria-label="Status"><option value="">All statuses</option><option>Paid</option><option>Partial</option><option>Unpaid</option></select>
+      </div>
+      <div class="tw"><table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div id="empty" class="empty hidden">No transactions match. Clear the filters or create a new document.</div>
+      <div class="foot"><span id="count"></span><span id="sum"></span></div>
+    </div>
+  </main>
+</section>
+
+<dialog id="dlg"><div class="dh"><h3 id="dt"></h3><button class="btn sm" id="dx">Close</button></div><div class="db" id="dbody"></div></dialog>
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.8/dist/sweetalert2.all.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+/* ====== SUPABASE (Project Settings > API) ====== */
+const SUPABASE_URL      = "https://oneynhaypzkinjbisgur.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Vxxbu_84lBIalJqW_X3TeA_vVM1ryxJ";
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const dbReady=()=>!SUPABASE_URL.includes("YOUR-PROJECT");
+
+const SESS="invoiceDeskSession";
+const sessionUser=()=>{for(const s of [localStorage,sessionStorage]){try{const r=s.getItem(SESS);if(r)return JSON.parse(r)}catch(e){}}return null};
+const USER={name:(()=>{const u=sessionUser();return (u&&(u.full_name||u.email))||"Admin"})()};
+const store=(s,k,v)=>{try{return v===undefined?s.getItem(k):v===null?s.removeItem(k):s.setItem(k,v)}catch(e){return null}};
+const signedIn=()=>store(localStorage,SESS)||store(sessionStorage,SESS);
+
+// Auth check
+if(!signedIn()){
+  window.location.replace("index.html");
+}
+
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const TYPES=["Invoice","Receipt","Quotation"];
+let docs=[],view={type:"All",q:"",st:"",sort:"date",dir:-1};
+const money=n=>"₹ "+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:0,maximumFractionDigits:2});
+const fdate=d=>new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"});
+const calc=d=>{const sub=d.items.reduce((a,i)=>a+i.qty*i.price,0),disc=sub*(d.discount||0)/100,tax=(sub-disc)*(d.tax||0)/100;return{sub,disc,tax,total:sub-disc+tax+(+d.shipping||0)}};
+const BRAND="#4f46e5";
+const Toast=Swal.mixin({toast:true,position:"top-end",showConfirmButton:false,timer:2500,timerProgressBar:true});
+const toast=m=>Toast.fire({icon:"success",title:m});
+const fail=(title,e)=>{console.error(e);return Swal.fire({icon:"error",title,text:(e&&e.message)||"Please check your connection and Supabase setup.",confirmButtonColor:BRAND})};
+
+/* ---------- data (Supabase) ---------- */
+let loading=false;
+async function loadDocs(silent){
+  if(!dbReady()){
+    docs=[];draw();
+    $("empty").textContent="Add your SUPABASE_URL and SUPABASE_ANON_KEY at the top of the script to load your documents.";
+    if(!silent)Swal.fire({icon:"info",title:"Supabase is not connected",text:"Add your SUPABASE_URL and SUPABASE_ANON_KEY at the top of the script.",confirmButtonColor:BRAND});
+    return}
+  if(loading)return;loading=true;
+  const btn=$("refreshBtn"),old=btn.textContent;btn.disabled=true;btn.textContent="Loading…";
+  if(!docs.length)$("empty").textContent="Loading documents…";
+  try{
+    const {data,error}=await sb.rpc("dashboard_documents");
+    if(error)throw error;
+    docs=Array.isArray(data)?data.map(d=>({...d,items:d.items||[],paid:+d.paid||0,tax:+d.tax||0,discount:+d.discount||0,shipping:+d.shipping||0})):[];
+    $("empty").textContent="No transactions match. Clear the filters or create a new document.";
+    draw();
+    if(!silent)toast("Dashboard updated");
+  }catch(e){
+    $("empty").textContent="Could not load documents.";
+    draw();
+    const r=await Swal.fire({icon:"error",title:"Could not load documents",text:e.message||"Please check your connection and Supabase setup.",showCancelButton:true,confirmButtonText:"Try again",confirmButtonColor:BRAND});
+    loading=false;
+    if(r.isConfirmed)return loadDocs(silent);
+  }finally{loading=false;btn.disabled=false;btn.textContent=old}
+}
+
+/* ---------- auth logout ---------- */
+$("logout").onclick=()=>{
+  store(localStorage,SESS,null);
+  store(sessionStorage,SESS,null);
+  window.location.href="login.html";
+};
+
+/* ---------- dashboard ---------- */
+const COLS=[["no","Number"],["type","Type"],["customer","Customer"],["date","Date"],["status","Status"],["total","Total","r"],["bal","Balance","r"]];
+function list(){
+  const q=view.q.toLowerCase();
+  const r=docs.filter(d=>(view.type==="All"||d.type===view.type)&&(!view.st||d.status===view.st)&&(!q||d.customer.toLowerCase().includes(q)||d.no.toLowerCase().includes(q)));
+  const v=d=>view.sort==="total"?calc(d).total:view.sort==="bal"?calc(d).total-d.paid:d[view.sort];
+  return r.sort((a,b)=>(v(a)>v(b)?1:v(a)<v(b)?-1:0)*view.dir)}
+
+function draw(){
+  const T={All:docs.length};TYPES.forEach(t=>T[t]=docs.filter(d=>d.type===t).length);
+  const labels={All:"All",Invoice:"Invoices",Receipt:"Receipts",Quotation:"Quotations"};
+  $("nav").innerHTML=["All",...TYPES].map(t=>`<button data-t="${t}" class="${view.type===t?"on":""}"><span>${t==="All"?"All transactions":labels[t]}</span><span class="n">${T[t]}</span></button>`).join("");
+  $("tabs").innerHTML=["All",...TYPES].map(t=>`<button data-t="${t}" class="${view.type===t?"on":""}">${labels[t]}</button>`).join("");
+  document.querySelectorAll("#nav button,#tabs button").forEach(b=>b.onclick=()=>{view.type=b.dataset.t;draw()});
+  $("title").textContent=view.type==="All"?"All transactions":labels[view.type];
+  $("subtitle").textContent=`${docs.length} documents · Today is ${new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}`;
+  const inv=docs.filter(d=>d.type==="Invoice"),rec=docs.filter(d=>d.type==="Receipt");
+  const billed=inv.reduce((a,d)=>a+calc(d).total,0),got=docs.filter(d=>d.type!=="Quotation").reduce((a,d)=>a+d.paid,0),due=inv.reduce((a,d)=>a+calc(d).total-d.paid,0);
+  const quo=docs.filter(d=>d.type==="Quotation").reduce((a,d)=>a+calc(d).total,0);
+  $("stats").innerHTML=[["Invoiced",billed,`${inv.length} invoices`],["Collected",got,`${rec.length} receipts + part payments`],["Outstanding",due,`${inv.filter(d=>d.status!=="Paid").length} invoices open`],["Quoted",quo,`${T.Quotation} quotations pending`]].map(s=>`<div class="card stat"><span>${s[0]}</span><b>${money(s[1])}</b><small>${s[2]}</small></div>`).join("");
+  const now=new Date(),ms=[];
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);ms.push({k:d.toISOString().slice(0,7),l:d.toLocaleDateString("en-IN",{month:"short"}),v:0,cur:i===0})}
+  docs.filter(d=>d.type==="Invoice").forEach(d=>{const m=ms.find(x=>x.k===d.date.slice(0,7));if(m)m.v+=calc(d).total});
+  const mx=Math.max(...ms.map(m=>m.v),1);
+  $("bars").innerHTML=ms.map(m=>`<div class="bar ${m.cur?"cur":""}" title="${money(m.v)}"><span>${m.v?Math.round(m.v/1000)+"k":""}</span><i style="height:${Math.max(m.v/mx*100,2)}%"></i><span>${m.l}</span></div>`).join("");
+  const col={Invoice:"#4f46e5",Receipt:"#0f766e",Quotation:"#7c3aed"},tv=TYPES.map(t=>docs.filter(d=>d.type===t).reduce((a,d)=>a+calc(d).total,0)),tm=Math.max(...tv,1);
+  $("mix").innerHTML=TYPES.map((t,i)=>`<div class="m"><div><span>${labels[t]}</span><span>${money(tv[i])}</span></div><div class="track"><i style="width:${tv[i]/tm*100}%;background:${col[t]}"></i></div></div>`).join("");
+  $("thead").innerHTML=COLS.map(c=>`<th class="${c[2]||""}" data-s="${c[0]}">${c[1]}${view.sort===c[0]?(view.dir>0?" ▲":" ▼"):""}</th>`).join("")+`<th></th>`;
+  document.querySelectorAll("#thead th[data-s]").forEach(h=>h.onclick=()=>{view.dir=view.sort===h.dataset.s?-view.dir:1;view.sort=h.dataset.s;draw()});
+  const L=list();
+  $("rows").innerHTML=L.map(d=>{const c=calc(d);return`<tr class="d"><td><b>${esc(d.no)}</b></td><td><span class="badge ${d.type}">${d.type}</span></td><td class="cust">${esc(d.customer)}<small>${esc(d.email||"")}</small></td><td>${fdate(d.date)}</td><td><span class="badge ${d.status}">${d.status}</span></td><td class="r"><b>${money(c.total)}</b></td><td class="r">${d.type==="Quotation"?"–":money(c.total-d.paid)}</td><td><div class="acts"><button class="btn sm" data-v="${d.id}">View</button>${d.type==="Quotation"?`<button class="btn sm" data-c="${d.id}">To invoice</button>`:""}<button class="btn sm danger" data-x="${d.id}" aria-label="Delete ${esc(d.no)}">Delete</button></div></td></tr>`}).join("");
+  $("empty").classList.toggle("hidden",L.length>0);
+  $("count").textContent=`Showing ${L.length} of ${docs.length}`;$("sum").textContent=`Total ${money(L.reduce((a,d)=>a+calc(d).total,0))}`;
+  document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>show(b.dataset.v));
+  document.querySelectorAll("[data-x]").forEach(b=>b.onclick=async()=>{
+    const d=docs.find(x=>x.id===b.dataset.x);if(!d)return;
+    const r=await Swal.fire({icon:"warning",title:`Delete ${d.no}?`,text:`${d.customer||"This document"} · this can't be undone.`,showCancelButton:true,confirmButtonText:"Yes, delete",confirmButtonColor:"#dc2626"});
+    if(!r.isConfirmed)return;
+    try{const {error}=await sb.rpc("delete_invoice",{p_id:d.id});if(error)throw error;docs=docs.filter(x=>x!==d);draw();toast(`${d.no} deleted`)}
+    catch(e){fail("Could not delete",e)}});
+  document.querySelectorAll("[data-c]").forEach(b=>b.onclick=async()=>{
+    const d=docs.find(x=>x.id===b.dataset.c);if(!d)return;
+    const r=await Swal.fire({icon:"question",title:`Convert ${d.no} to an invoice?`,text:"A new unpaid invoice is created. The quotation is kept.",showCancelButton:true,confirmButtonText:"Create invoice",confirmButtonColor:BRAND});
+    if(!r.isConfirmed)return;
+    try{
+      Swal.fire({title:"Creating invoice…",allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading()});
+      const {data,error}=await sb.rpc("convert_quotation",{p_id:d.id});if(error)throw error;
+      await loadDocs(true);view.type="Invoice";draw();Swal.close();toast(`Invoice ${data.no} created`)}
+    catch(e){fail("Could not convert",e)}})}
+
+function show(id){
+  const d=docs.find(x=>x.id===id),c=calc(d);
+  $("dt").textContent=`${d.type} ${d.no}`;
+  $("dbody").innerHTML=`<div class="kv"><div><small>Customer</small><b>${esc(d.customer)}</b><br>${esc(d.email||"")}</div><div><small>Date</small><b>${fdate(d.date)}</b><br><span class="badge ${d.status}">${d.status}</span> · ${esc(d.method||"")}</div></div>
+  <table style="min-width:0"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr></thead><tbody>${d.items.map(i=>`<tr><td>${esc(i.name||"Item")}</td><td class="r">${i.qty}</td><td class="r">${money(i.price)}</td><td class="r">${money(i.qty*i.price)}</td></tr>`).join("")}</tbody></table>
+  <div class="tot"><div><span>Subtotal</span><span>${money(c.sub)}</span></div><div><span>Discount (${d.discount||0}%)</span><span>- ${money(c.disc)}</span></div><div><span>Tax (${d.tax||0}%)</span><span>${money(c.tax)}</span></div>${+d.shipping?`<div><span>Shipping</span><span>${money(d.shipping)}</span></div>`:""}<div class="g"><span>Total</span><span>${money(c.total)}</span></div>${d.type!=="Quotation"?`<div><span>Paid</span><span>${money(d.paid)}</span></div><div><span>Balance due</span><span>${money(c.total-d.paid)}</span></div>`:""}</div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px"><button class="btn" onclick="window.print()">Print</button>${d.email?(()=>{const q=`subject=${encodeURIComponent(d.type+" "+d.no)}&body=${encodeURIComponent("Hello "+d.customer+",\r\n\r\n"+d.type+" "+d.no+"\r\nTotal: "+money(c.total)+"\r\nBalance: "+money(c.total-d.paid))}`;return`<a class="btn" target="_blank" rel="noopener" href="https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(d.email)}&${q}">Open in Gmail</a><a class="btn primary" href="mailto:${esc(d.email)}?${q}">Email app</a>`})():""}</div>`;
+  $("dlg").showModal()}
+
+$("dx").onclick=()=>$("dlg").close();
+$("dlg").addEventListener("click",e=>{if(e.target===$("dlg"))$("dlg").close()});
+$("q").oninput=e=>{view.q=e.target.value;draw()};
+$("st").onchange=e=>{view.st=e.target.value;draw()};
+
+$("refreshBtn").onclick=()=>loadDocs(false);
+
+$("csvBtn").onclick=()=>{
+  const rows=[["Number","Type","Customer","Email","Date","Status","Total","Paid"],...list().map(d=>[d.no,d.type,d.customer,d.email,d.date,d.status,calc(d).total.toFixed(2),d.paid])];
+  const csv=rows.map(r=>r.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")).join("\n");
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="transactions.csv";a.click();toast("CSV exported")};
+
+// Initialize
+$("who").textContent=USER.name;
+$("av").textContent=USER.name[0];
+draw();
+loadDocs(false);
+// pick up documents saved in the builder when you come back to this tab
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&dbReady())loadDocs(true)});
+</script>
+</body>
+</html>
